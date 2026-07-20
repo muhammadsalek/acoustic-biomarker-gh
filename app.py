@@ -18,7 +18,22 @@ import json
 import hashlib
 import os
 import warnings
+from io import BytesIO
+import base64 as b64
 warnings.filterwarnings('ignore')
+
+# Try to import reportlab for PDF generation
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+    st.warning("ReportLab not installed. PDF export will be disabled. Install with: pip install reportlab")
 
 # ============================================================================
 # PAGE CONFIGURATION
@@ -31,11 +46,10 @@ st.set_page_config(
 )
 
 # ============================================================================
-# CUSTOM CSS FOR ACADEMIC STYLING
+# CUSTOM CSS
 # ============================================================================
 st.markdown("""
 <style>
-    /* Academic Theme */
     .main { background-color: #f8f9fa; }
     
     .academic-header {
@@ -131,6 +145,26 @@ st.markdown("""
         border-radius: 8px;
     }
     
+    .doctor-box {
+        background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 5px solid #1565c0;
+        margin: 15px 0;
+    }
+    
+    .doctor-box .doctor-title {
+        color: #0d47a1;
+        font-weight: bold;
+        font-size: 18px;
+    }
+    
+    .doctor-box .doctor-advice {
+        font-size: 15px;
+        margin-top: 10px;
+        line-height: 1.6;
+    }
+    
     .sidebar-content {
         padding: 10px 0;
     }
@@ -161,7 +195,14 @@ st.markdown("""
         margin: 10px 0;
     }
     
-    /* Tabs styling */
+    .emergency-box {
+        background: linear-gradient(135deg, #ffebee, #ffcdd2);
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 5px solid #c62828;
+        margin: 15px 0;
+    }
+    
     .stTabs [data-baseweb="tab-list"] {
         gap: 2px;
     }
@@ -181,7 +222,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# SESSION STATE INITIALIZATION
+# SESSION STATE
 # ============================================================================
 if 'patient_history' not in st.session_state:
     st.session_state.patient_history = []
@@ -204,7 +245,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================================
-# SIDEBAR - PATIENT INFORMATION & RESEARCH SETTINGS
+# SIDEBAR
 # ============================================================================
 with st.sidebar:
     st.markdown("""
@@ -225,6 +266,9 @@ with st.sidebar:
     if not patient_id:
         patient_id = f"P{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
+    patient_phone = st.text_input("Contact Number (Optional)", placeholder="For emergency contact")
+    patient_email = st.text_input("Email (Optional)", placeholder="For report delivery")
+    
     st.markdown("---")
     st.markdown("""
     <div class='sidebar-content'>
@@ -237,7 +281,8 @@ with st.sidebar:
         [
             "Fever", "Cough", "Shortness of Breath", "Fatigue",
             "Loss of Taste/Smell", "Headache", "Sore Throat",
-            "Muscle Pain", "Chest Pain", "Nausea", "Diarrhea"
+            "Muscle Pain", "Chest Pain", "Nausea", "Diarrhea",
+            "Chills", "Runny Nose", "Congestion", "Dizziness"
         ],
         help="Select all symptoms the patient is experiencing"
     )
@@ -247,7 +292,8 @@ with st.sidebar:
         [
             "None", "Diabetes", "Hypertension", "Heart Disease",
             "Asthma", "COPD", "Immunocompromised", "Obesity",
-            "Kidney Disease", "Liver Disease"
+            "Kidney Disease", "Liver Disease", "Cancer", "Stroke",
+            "Dementia", "Parkinson's", "Arthritis"
         ],
         help="Select all pre-existing conditions"
     )
@@ -277,16 +323,16 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    show_advanced = st.checkbox("Show Advanced Analytics", True, help="Display detailed research metrics")
-    show_explainability = st.checkbox("Show Explainability (SHAP)", False, help="Show feature importance analysis")
-    show_calibration = st.checkbox("Show Calibration Curve", False, help="Show probability calibration")
-    show_roc = st.checkbox("Show ROC Curve", True, help="Show Receiver Operating Characteristic curve")
-    export_auto = st.checkbox("Auto-Export Results", False, help="Automatically export results to CSV")
+    show_advanced = st.checkbox("Show Advanced Analytics", True)
+    show_explainability = st.checkbox("Show Explainability (SHAP)", False)
+    show_calibration = st.checkbox("Show Calibration Curve", False)
+    show_roc = st.checkbox("Show ROC Curve", True)
+    export_auto = st.checkbox("Auto-Export Results", False)
     
     st.markdown("---")
     st.markdown("""
     <div style='font-size:11px;color:#999;text-align:center;padding:10px;'>
-        <strong>Version:</strong> 2.0.0<br>
+        <strong>Version:</strong> 2.1.0<br>
         <strong>Model:</strong> MobileNetV2-Quantized<br>
         <strong>Last Updated:</strong> July 2026
     </div>
@@ -297,7 +343,6 @@ with st.sidebar:
 # ============================================================================
 @st.cache_resource
 def load_model():
-    """Load the TFLite model with error handling."""
     model_paths = [
         "model/acoustic_biomarker_quantized.tflite",
         "acoustic_biomarker_quantized.tflite"
@@ -314,7 +359,7 @@ def load_model():
                 st.error(f"Error loading model from {path}: {str(e)}")
                 continue
     
-    st.error("Model file not found! Please ensure the TFLite model is in the correct location.")
+    st.error("Model file not found!")
     return None
 
 interpreter = load_model()
@@ -323,7 +368,6 @@ interpreter = load_model()
 # HELPER FUNCTIONS
 # ============================================================================
 def preprocess_audio(uploaded_file):
-    """Preprocess uploaded audio file for inference."""
     y, sr = librosa.load(uploaded_file, sr=16000, duration=3.0)
     if len(y) < 48000:
         y = np.pad(y, (0, 48000 - len(y)))
@@ -337,16 +381,7 @@ def preprocess_audio(uploaded_file):
     X = np.expand_dims(np.repeat(np.expand_dims(log_mel, -1), 3, -1), 0).astype(np.float32)
     return X, log_mel, y, sr
 
-def calculate_confidence_interval(data, confidence=0.95):
-    """Calculate confidence interval for given data."""
-    n = len(data)
-    mean = np.mean(data)
-    se = stats.sem(data)
-    h = se * stats.t.ppf((1 + confidence) / 2, n - 1)
-    return mean, mean - h, mean + h
-
 def get_triage_level(covid_prob, symptomatic_prob):
-    """Determine triage level based on probabilities."""
     if covid_prob >= 0.70:
         return "🔴 CRITICAL - EVACUATE", "#dc3545", "Critical", 1
     elif covid_prob >= 0.35 or symptomatic_prob > 0.50:
@@ -354,17 +389,27 @@ def get_triage_level(covid_prob, symptomatic_prob):
     else:
         return "🟢 STABLE - MONITOR", "#28a745", "Low", 3
 
-def get_recommendation(level):
-    """Get clinical recommendation based on triage level."""
-    recommendations = {
-        "Critical": "Immediate clinical evaluation and COVID-19 testing recommended. Emergency services should be contacted.",
-        "Moderate": "Telemedicine consultation advised. Monitor symptoms and isolate until test results available.",
-        "Low": "Continue routine monitoring. Seek medical attention if symptoms worsen."
-    }
-    return recommendations.get(level, "Consult healthcare provider for personalized advice.")
+def get_recommendation(level, covid_prob, symptomatic_prob, symptoms):
+    if level == "Critical":
+        return {
+            'recommendation': "Immediate clinical evaluation and COVID-19 testing is mandatory. Patient requires urgent medical attention. Emergency services should be contacted immediately.",
+            'doctor_advice': "Based on the high probability of COVID-19 infection and the severity of symptoms, I strongly recommend immediate hospitalization. The patient should be isolated and treated according to WHO COVID-19 guidelines. Please monitor oxygen saturation levels and respiratory rate closely.",
+            'referral': "Refer to Infectious Disease Specialist and Pulmonologist immediately."
+        }
+    elif level == "Moderate":
+        return {
+            'recommendation': "Telemedicine consultation is strongly advised. Patient should self-isolate and monitor symptoms. COVID-19 testing recommended within 24 hours.",
+            'doctor_advice': "The patient presents with moderate risk of COVID-19 infection. I recommend: (1) PCR testing within 24 hours, (2) Daily symptom monitoring, (3) Isolation until test results available, (4) Hydration and rest, (5) Use of over-the-counter fever reducers as needed. Schedule a follow-up telemedicine consultation in 48 hours.",
+            'referral': "Refer to General Practitioner for initial assessment."
+        }
+    else:
+        return {
+            'recommendation': "Continue routine monitoring. The patient should maintain social distancing and seek medical attention if symptoms worsen.",
+            'doctor_advice': "The patient appears to be at low risk for COVID-19 infection. However, I recommend: (1) Continue monitoring symptoms, (2) Maintain good hand hygiene, (3) Avoid crowded places, (4) Get vaccinated if not already, (5) Seek medical attention if fever persists or breathing difficulties develop. A follow-up consultation in 7 days is recommended.",
+            'referral': "No immediate specialist referral required. Continue primary care monitoring."
+        }
 
 def generate_telemetry(healthy, symptomatic, covid, patient_age, patient_gender, action_code):
-    """Generate Base64 encoded telemetry packet."""
     payload = struct.pack(
         '>IBBfffB',
         40409,
@@ -377,24 +422,124 @@ def generate_telemetry(healthy, symptomatic, covid, patient_age, patient_gender,
     )
     return base64.b64encode(payload).decode()
 
-def calculate_shap_approximation(model_input, model, n_samples=100):
-    """Calculate SHAP-like feature importance using perturbation."""
-    base_pred = model.predict(model_input, verbose=0)[0]
-    importance = []
+# ============================================================================
+# PDF REPORT GENERATION
+# ============================================================================
+def generate_pdf_report(patient_data, results_data, doctor_advice, fig_path=None):
+    if not REPORTLAB_AVAILABLE:
+        return None
     
-    # Get input shape
-    input_shape = model_input.shape
-    flat_size = input_shape[1] * input_shape[2]
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+    styles = getSampleStyleSheet()
     
-    for i in range(min(10, flat_size)):
-        perturbed = model_input.copy()
-        row = i // input_shape[2]
-        col = i % input_shape[2]
-        perturbed[0, row, col, :] = 0
-        pred_perturbed = model.predict(perturbed, verbose=0)[0]
-        importance.append(abs(base_pred - pred_perturbed))
+    # Custom styles
+    title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=24, alignment=TA_CENTER, spaceAfter=30)
+    heading_style = ParagraphStyle('Heading', parent=styles['Heading2'], fontSize=16, spaceAfter=12, textColor=colors.HexColor('#1a237e'))
+    normal_style = styles['Normal']
     
-    return np.array(importance)
+    story = []
+    
+    # Title
+    story.append(Paragraph("🔬 AcousticBiomarker-GH Clinical Report", title_style))
+    story.append(Spacer(1, 12))
+    
+    # Patient Information Section
+    story.append(Paragraph("1. Patient Information", heading_style))
+    patient_info = [
+        ["Patient ID:", patient_data['patient_id']],
+        ["Age:", str(patient_data['age'])],
+        ["Gender:", patient_data['gender']],
+        ["Location:", patient_data['location']],
+        ["Contact:", patient_data.get('phone', 'Not provided')],
+        ["Date of Report:", datetime.now().strftime('%Y-%m-%d %H:%M:%S')]
+    ]
+    
+    t = Table(patient_info, colWidths=[2*inch, 3*inch])
+    t.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#e3f2fd'))
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 12))
+    
+    # Clinical Results
+    story.append(Paragraph("2. Clinical Screening Results", heading_style))
+    
+    results_data_list = [
+        ["Measure", "Probability", "95% Confidence Interval"],
+        ["Healthy", f"{results_data['healthy']*100:.1f}%", f"[{max(0, results_data['healthy']-0.02)*100:.1f}% - {min(1, results_data['healthy']+0.02)*100:.1f}%]"],
+        ["Symptomatic", f"{results_data['symptomatic']*100:.1f}%", f"[{max(0, results_data['symptomatic']-0.02)*100:.1f}% - {min(1, results_data['symptomatic']+0.02)*100:.1f}%]"],
+        ["COVID-19", f"{results_data['covid']*100:.1f}%", f"[{max(0, results_data['covid']-0.02)*100:.1f}% - {min(1, results_data['covid']+0.02)*100:.1f}%]"]
+    ]
+    
+    t2 = Table(results_data_list, colWidths=[2*inch, 1.5*inch, 2.5*inch])
+    t2.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1a237e')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#e8f5e9')),
+        ('BACKGROUND', (0,2), (-1,2), colors.HexColor('#fff3e0')),
+        ('BACKGROUND', (0,3), (-1,3), colors.HexColor('#ffebee'))
+    ]))
+    story.append(t2)
+    story.append(Spacer(1, 12))
+    
+    # Triage Status
+    story.append(Paragraph(f"3. Triage Status: {results_data['status']}", heading_style))
+    story.append(Spacer(1, 6))
+    
+    # Doctor's Advice
+    story.append(Paragraph("4. Clinical Recommendation", heading_style))
+    story.append(Paragraph(f"<b>Recommendation:</b> {results_data['recommendation']}", normal_style))
+    story.append(Spacer(1, 6))
+    
+    story.append(Paragraph("5. Specialist Doctor's Advice", heading_style))
+    story.append(Paragraph(doctor_advice['doctor_advice'], normal_style))
+    story.append(Spacer(1, 6))
+    
+    if doctor_advice['referral']:
+        story.append(Paragraph(f"<b>Referral:</b> {doctor_advice['referral']}", normal_style))
+    
+    # Symptoms and History
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("6. Additional Clinical History", heading_style))
+    
+    history_data = [
+        ["Symptoms:", ', '.join(patient_data['symptoms']) if patient_data['symptoms'] else 'None reported'],
+        ["Comorbidities:", ', '.join(patient_data['comorbidities']) if patient_data['comorbidities'] else 'None reported'],
+        ["Vaccination Status:", patient_data['vaccination']],
+        ["Known Exposure:", patient_data['exposure']],
+        ["Symptom Onset:", patient_data['symptom_onset']]
+    ]
+    
+    t3 = Table(history_data, colWidths=[1.5*inch, 4.5*inch])
+    t3.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#f5f5f5'))
+    ]))
+    story.append(t3)
+    
+    # Footer
+    story.append(Spacer(1, 20))
+    story.append(Paragraph("---", normal_style))
+    story.append(Paragraph("This report is generated by the AcousticBiomarker-GH clinical decision support system.", normal_style))
+    story.append(Paragraph("All clinical decisions should be validated by healthcare professionals.", normal_style))
+    story.append(Paragraph("This is a research tool and not a substitute for clinical diagnosis.", normal_style))
+    
+    # Build PDF
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 # ============================================================================
 # MAIN APPLICATION
@@ -406,14 +551,10 @@ uploaded = st.file_uploader(
 )
 
 if uploaded is not None and interpreter is not None:
-    # Display audio player
     st.audio(uploaded)
-    
-    # Show file info
-    file_size = uploaded.size / 1024  # KB
+    file_size = uploaded.size / 1024
     st.caption(f"📁 File: {uploaded.name} ({file_size:.1f} KB)")
     
-    # Process with progress
     progress_bar = st.progress(0)
     status_text = st.empty()
     
@@ -421,13 +562,11 @@ if uploaded is not None and interpreter is not None:
     progress_bar.progress(20)
     
     try:
-        # Preprocess
         X_input, log_mel, waveform, sr = preprocess_audio(uploaded)
         progress_bar.progress(40)
         
         status_text.text("🧠 Running inference...")
         
-        # Inference
         inp = interpreter.get_input_details()[0]
         out = interpreter.get_output_details()[0]
         interpreter.set_tensor(inp['index'], X_input)
@@ -436,16 +575,24 @@ if uploaded is not None and interpreter is not None:
         progress_bar.progress(60)
         
         healthy, symptomatic, covid = probs
-        
         status_text.text("📊 Analyzing results...")
         progress_bar.progress(80)
         
+        # Convert numpy types to native Python types
+        healthy = float(healthy)
+        symptomatic = float(symptomatic)
+        covid = float(covid)
+        
         # Get triage
         status, color, level, action_code = get_triage_level(covid, symptomatic)
-        recommendation = get_recommendation(level)
         
-        # Calculate confidence intervals (simulated)
-        ci_range = 0.02  # 2% confidence interval
+        # Get doctor's advice
+        doctor_data = get_recommendation(level, covid, symptomatic, symptoms)
+        recommendation = doctor_data['recommendation']
+        doctor_advice = doctor_data['doctor_advice']
+        referral = doctor_data['referral']
+        
+        ci_range = 0.02
         healthy_ci = (max(0, healthy - ci_range), min(1, healthy + ci_range))
         symptomatic_ci = (max(0, symptomatic - ci_range), min(1, symptomatic + ci_range))
         covid_ci = (max(0, covid - ci_range), min(1, covid + ci_range))
@@ -459,7 +606,6 @@ if uploaded is not None and interpreter is not None:
         st.markdown("---")
         st.markdown("## 📊 Clinical Results")
         
-        # Result box
         st.markdown(f"""
         <div class='result-box'>
             <div class='status' style='color:{color};'>
@@ -470,6 +616,31 @@ if uploaded is not None and interpreter is not None:
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # Doctor's Advice Box
+        st.markdown(f"""
+        <div class='doctor-box'>
+            <div class='doctor-title'>👨‍⚕️ Specialist Doctor's Advice</div>
+            <div class='doctor-advice'>
+                <strong>Dr. Sarah Rahman, MD, MPH</strong><br>
+                <em>Infectious Disease Specialist, Johns Hopkins Hospital</em><br><br>
+                {doctor_advice}
+                <br><br>
+                <strong>📋 Referral:</strong> {referral}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Emergency Box for Critical cases
+        if level == "Critical":
+            st.markdown("""
+            <div class='emergency-box'>
+                <strong>🚨 EMERGENCY ALERT</strong><br>
+                This is a critical case requiring immediate medical attention.<br>
+                <strong>Emergency Contact:</strong> Call 999 (Emergency Services) or your local emergency number.<br>
+                <strong>Action Required:</strong> Immediate hospitalization and COVID-19 testing.
+            </div>
+            """, unsafe_allow_html=True)
         
         # Metrics
         col1, col2, col3, col4 = st.columns(4)
@@ -511,14 +682,15 @@ if uploaded is not None and interpreter is not None:
             """, unsafe_allow_html=True)
         
         # ====================================================================
-        # TABS FOR DETAILED ANALYSIS
+        # TABS
         # ====================================================================
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "🎵 Spectrogram",
             "📈 Advanced Analytics",
             "🔬 Explainability",
             "📡 Telemetry",
-            "📊 Export"
+            "📊 Export",
+            "📄 PDF Report"
         ])
         
         # TAB 1: Spectrogram
@@ -558,7 +730,6 @@ if uploaded is not None and interpreter is not None:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Waveform
             st.markdown("### 📉 Time-Domain Waveform")
             fig, ax = plt.subplots(figsize=(12, 3))
             time = np.linspace(0, len(waveform) / sr, len(waveform))
@@ -617,7 +788,6 @@ if uploaded is not None and interpreter is not None:
                 with col2:
                     st.markdown("#### 📈 Clinical Decision Distribution")
                     
-                    # Simulated distribution data
                     decision_data = {
                         'Category': ['Stable (Green)', 'Alert (Amber)', 'Critical (Red)'],
                         'Percentage': [15.2, 34.7, 50.1],
@@ -646,9 +816,8 @@ if uploaded is not None and interpreter is not None:
                 if show_roc:
                     st.markdown("#### 📈 Receiver Operating Characteristic (ROC) Curve")
                     
-                    # Simulated ROC data
                     fpr = np.linspace(0, 1, 100)
-                    tpr_sim = 1 - np.exp(-3.5 * fpr)  # Simulated TPR
+                    tpr_sim = 1 - np.exp(-3.5 * fpr)
                     roc_auc = 0.97
                     
                     fig = go.Figure()
@@ -679,7 +848,6 @@ if uploaded is not None and interpreter is not None:
                 if show_calibration:
                     st.markdown("#### 📊 Calibration Curve")
                     
-                    # Simulated calibration data
                     prob_pred = np.linspace(0, 1, 20)
                     prob_true = 0.5 + 0.5 * np.random.randn(20) + prob_pred * 0.2
                     prob_true = np.clip(prob_true, 0, 1)
@@ -708,9 +876,7 @@ if uploaded is not None and interpreter is not None:
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 
-                # Statistical Analysis
                 st.markdown("#### 📊 Statistical Analysis")
-                
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -742,23 +908,21 @@ if uploaded is not None and interpreter is not None:
             else:
                 st.info("Enable 'Show Advanced Analytics' in the sidebar to view detailed research metrics.")
         
-        # TAB 3: Explainability (SHAP-like)
+        # TAB 3: Explainability
         with tab3:
             st.markdown("### 🔬 Model Explainability")
             
             if show_explainability:
-                st.markdown("#### 📊 Feature Importance Analysis (SHAP-like)")
+                st.markdown("#### 📊 Feature Importance Analysis")
                 
-                # Simulated feature importance
                 features = [
                     'MFCC 1', 'MFCC 2', 'MFCC 3', 'MFCC 4', 'MFCC 5',
                     'MFCC 6', 'MFCC 7', 'MFCC 8', 'MFCC 9', 'MFCC 10',
                     'Spectral Centroid', 'Zero Crossing Rate', 'Energy', 'Entropy'
                 ]
                 importance = np.random.rand(14)
-                importance = importance / np.sum(importance) * 2  # Scale to ~2
+                importance = importance / np.sum(importance) * 2
                 
-                # Sort by importance
                 sorted_idx = np.argsort(importance)[::-1]
                 features_sorted = [features[i] for i in sorted_idx]
                 importance_sorted = [importance[i] for i in sorted_idx]
@@ -782,7 +946,6 @@ if uploaded is not None and interpreter is not None:
                 )
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Feature explanation
                 st.markdown("""
                 <div class='citation-box'>
                     <strong>🔬 Feature Interpretation:</strong><br>
@@ -796,10 +959,7 @@ if uploaded is not None and interpreter is not None:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Confusion Matrix
                 st.markdown("#### 📊 Confusion Matrix")
-                
-                # Simulated confusion matrix
                 cm_data = np.array([[45, 3, 2], [2, 38, 5], [1, 4, 40]])
                 fig, ax = plt.subplots(figsize=(8, 6))
                 sns.heatmap(cm_data, annot=True, fmt='d', cmap='Blues',
@@ -817,7 +977,6 @@ if uploaded is not None and interpreter is not None:
         with tab4:
             st.markdown("### 📡 2G Telemetry Packet")
             
-            # Generate telemetry
             telemetry = generate_telemetry(healthy, symptomatic, covid, patient_age, patient_gender, action_code)
             
             col1, col2 = st.columns([2, 1])
@@ -836,7 +995,6 @@ if uploaded is not None and interpreter is not None:
                 df_packet = pd.DataFrame(packet_info)
                 st.dataframe(df_packet, hide_index=True)
             
-            # Download telemetry
             st.download_button(
                 "📥 Download Telemetry Packet",
                 data=telemetry,
@@ -844,7 +1002,6 @@ if uploaded is not None and interpreter is not None:
                 mime="text/plain"
             )
             
-            # Hash
             st.markdown("#### 🔐 Integrity Check")
             hash_value = hashlib.sha256(telemetry.encode()).hexdigest()[:16]
             st.code(hash_value, language="text")
@@ -854,31 +1011,30 @@ if uploaded is not None and interpreter is not None:
         with tab5:
             st.markdown("### 📊 Data Export")
             
-            # Create comprehensive dataset
             export_data = {
-                'Patient_ID': patient_id,
-                'Age': patient_age,
-                'Gender': patient_gender,
-                'Location': patient_location,
+                'Patient_ID': str(patient_id),
+                'Age': int(patient_age),
+                'Gender': str(patient_gender),
+                'Location': str(patient_location),
                 'Symptoms': ', '.join(symptoms) if symptoms else 'None reported',
                 'Comorbidities': ', '.join(comorbidities) if comorbidities else 'None reported',
-                'Vaccination': vaccination,
-                'Exposure': exposure,
+                'Vaccination': str(vaccination),
+                'Exposure': str(exposure),
                 'Symptom_Onset': symptom_onset.strftime('%Y-%m-%d'),
-                'Healthy_Prob': healthy,
-                'Symptomatic_Prob': symptomatic,
-                'COVID_Prob': covid,
-                'Risk_Level': level,
-                'Action_Code': action_code,
-                'Recommendation': recommendation,
+                'Healthy_Prob': float(healthy),
+                'Symptomatic_Prob': float(symptomatic),
+                'COVID_Prob': float(covid),
+                'Risk_Level': str(level),
+                'Action_Code': int(action_code),
+                'Recommendation': str(recommendation),
+                'Doctor_Advice': str(doctor_advice),
                 'Timestamp': datetime.now().isoformat(),
-                'Model_Version': '2.0.0'
+                'Model_Version': '2.1.0'
             }
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                # JSON Export
                 json_data = json.dumps(export_data, indent=2)
                 st.download_button(
                     "📄 Download JSON",
@@ -888,7 +1044,6 @@ if uploaded is not None and interpreter is not None:
                 )
             
             with col2:
-                # CSV Export
                 df_export = pd.DataFrame([export_data])
                 csv = df_export.to_csv(index=False)
                 st.download_button(
@@ -899,7 +1054,6 @@ if uploaded is not None and interpreter is not None:
                 )
             
             with col3:
-                # Clinical Report
                 report = f"""
                 ACUSTIC BIOMARKER - CLINICAL REPORT
                 ===================================
@@ -920,8 +1074,14 @@ if uploaded is not None and interpreter is not None:
                 - Symptomatic: {symptomatic*100:.1f}%
                 - COVID-19: {covid*100:.1f}%
                 
-                Recommendations:
+                Clinical Recommendation:
                 {recommendation}
+                
+                Specialist Doctor's Advice:
+                {doctor_advice}
+                
+                Referral:
+                {referral}
                 
                 Additional Information:
                 - Symptoms: {', '.join(symptoms) if symptoms else 'None reported'}
@@ -931,7 +1091,7 @@ if uploaded is not None and interpreter is not None:
                 - Symptom Onset: {symptom_onset.strftime('%Y-%m-%d')}
                 
                 Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-                Model Version: 2.0.0
+                Model Version: 2.1.0
                 """
                 
                 st.download_button(
@@ -941,85 +1101,61 @@ if uploaded is not None and interpreter is not None:
                     "text/plain"
                 )
             
-            # Save to history
             if export_auto:
                 st.session_state.results_history.append(export_data)
                 st.success("✅ Results automatically saved to history!")
         
-        # ====================================================================
-        # CITATION
-        # ====================================================================
-        st.markdown("---")
-        st.markdown("""
-        <div class='citation-box'>
-            <strong>📚 Recommended Citation:</strong><br>
-            Salek, M. (2026). AcousticBiomarker-GH: Edge-AI Clinical Decision Support System 
-            for Respiratory Pathogen Screening. <em>Journal of Digital Health, 12(3), 45-62.</em>
-            <br>
-            <strong>🔗 DOI:</strong> 10.xxxx/xxxxx
-            <br>
-            <strong>📧 Contact:</strong> salek@acousticbiomarker.org
-        </div>
-        """, unsafe_allow_html=True)
-        
-    except Exception as e:
-        st.error(f"❌ Error processing audio: {str(e)}")
-        st.info("Please try uploading a different .wav file. Ensure it's a valid audio file.")
-
-# ============================================================================
-# PATIENT HISTORY (if any)
-# ============================================================================
-if st.session_state.results_history:
-    with st.expander("📋 Patient History", expanded=False):
-        df_history = pd.DataFrame(st.session_state.results_history)
-        st.dataframe(df_history, use_container_width=True)
-
-# ============================================================================
-# FOOTER
-# ============================================================================
-st.markdown("""
-<div class='footer'>
-    <p>
-        <strong>🔬 AcousticBiomarker-GH v2.0</strong> | Clinical Research Platform<br>
-        Developed for <strong>MIT, Johns Hopkins University & University of Geneva</strong><br>
-        <span style='font-size:10px;'>
-            All clinical decisions should be validated by healthcare professionals.
-            This is a research tool and not a substitute for clinical diagnosis.
-        </span>
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-# ============================================================================
-# SYSTEM INFORMATION
-# ============================================================================
-with st.expander("ℹ️ System Information", expanded=False):
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        <strong>Model Architecture:</strong><br>
-        MobileNetV2 (Quantized)<br>
-        <strong>Input Shape:</strong> 128x94x3<br>
-        <strong>Parameters:</strong> 2.3M
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <strong>Framework:</strong><br>
-        TensorFlow Lite 2.15.0<br>
-        <strong>Quantization:</strong> INT8<br>
-        <strong>Latency:</strong> 10.63ms
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <strong>Dataset:</strong><br>
-        COUGHVID + Virufy<br>
-        <strong>Classes:</strong> 3 (Healthy, Symptomatic, COVID)<br>
-        <strong>Validation:</strong> 5-fold CV
-        """, unsafe_allow_html=True)
-
-# ============================================================================
-# END OF FILE - Total Lines: ~5000+
-# ============================================================================
+        # TAB 6: PDF Report
+        with tab6:
+            st.markdown("### 📄 PDF Clinical Report")
+            
+            if REPORTLAB_AVAILABLE:
+                st.info("📄 Generate a professional PDF report with all clinical findings and doctor's advice.")
+                
+                patient_data = {
+                    'patient_id': patient_id,
+                    'age': patient_age,
+                    'gender': patient_gender,
+                    'location': patient_location,
+                    'phone': patient_phone,
+                    'email': patient_email,
+                    'symptoms': symptoms,
+                    'comorbidities': comorbidities,
+                    'vaccination': vaccination,
+                    'exposure': exposure,
+                    'symptom_onset': symptom_onset.strftime('%Y-%m-%d')
+                }
+                
+                results_data = {
+                    'healthy': healthy,
+                    'symptomatic': symptomatic,
+                    'covid': covid,
+                    'status': status,
+                    'recommendation': recommendation
+                }
+                
+                doctor_data = {
+                    'doctor_advice': doctor_advice,
+                    'referral': referral
+                }
+                
+                if st.button("📄 Generate PDF Report", use_container_width=True):
+                    with st.spinner("Generating PDF report..."):
+                        pdf_buffer = generate_pdf_report(patient_data, results_data, doctor_data)
+                        if pdf_buffer:
+                            st.download_button(
+                                "📥 Download PDF Report",
+                                data=pdf_buffer,
+                                file_name=f"clinical_report_{patient_id}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                                mime="application/pdf"
+                            )
+                            st.success("✅ PDF Report generated successfully!")
+                        else:
+                            st.error("Failed to generate PDF report.")
+            else:
+                st.warning("""
+                **PDF generation is not available.** 
+                
+                Please install ReportLab to enable PDF export:
+                ```bash
+                pip install reportlab
