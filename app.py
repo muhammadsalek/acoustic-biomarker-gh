@@ -33,7 +33,7 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
-    st.warning("ReportLab not installed. PDF export will be disabled. Install with: pip install reportlab")
+    # Don't use st.warning here, it will be handled in the app
 
 # ============================================================================
 # PAGE CONFIGURATION
