@@ -249,7 +249,7 @@ st.markdown("""
 with st.sidebar:
     st.markdown("""
     <div class='sidebar-content'>
-        <div class='section-title'>👤 Patient Information</div>
+        <div class='section-title'> Patient Information</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -271,7 +271,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("""
     <div class='sidebar-content'>
-        <div class='section-title'>🏥 Clinical History</div>
+        <div class='section-title'> Clinical History</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -612,7 +612,7 @@ if uploaded is not None and interpreter is not None:
                 <em>Infectious Disease Department</em><br><br>
                 {doctor_advice}
                 <br><br>
-                <strong>📋 Referral:</strong> {referral}
+                <strong> Referral:</strong> {referral}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -660,7 +660,7 @@ if uploaded is not None and interpreter is not None:
             st.markdown(f"""
             <div class='metric-card info'>
                 <div class='value'>{level}</div>
-                <div class='label'>📊 Risk Level</div>
+                <div class='label'> Risk Level</div>
                 <div class='ci'>Action Code: {action_code}</div>
             </div>
             """, unsafe_allow_html=True)
@@ -770,7 +770,7 @@ if uploaded is not None and interpreter is not None:
                     st.dataframe(df_metrics, hide_index=True, use_container_width=True)
                 
                 with col2:
-                    st.markdown("#### 📈 Clinical Decision Distribution")
+                    st.markdown("####  Clinical Decision Distribution")
                     
                     decision_data = {
                         'Category': ['Stable (Green)', 'Alert (Amber)', 'Critical (Red)'],
@@ -798,7 +798,7 @@ if uploaded is not None and interpreter is not None:
                     st.plotly_chart(fig, use_container_width=True)
                 
                 if show_roc:
-                    st.markdown("#### 📈 Receiver Operating Characteristic (ROC) Curve")
+                    st.markdown("####  Receiver Operating Characteristic (ROC) Curve")
                     
                     fpr = np.linspace(0, 1, 100)
                     tpr_sim = 1 - np.exp(-3.5 * fpr)
@@ -894,7 +894,7 @@ if uploaded is not None and interpreter is not None:
         
         # TAB 3: Explainability
         with tab3:
-            st.markdown("### 🔬 Model Explainability")
+            st.markdown("###  Model Explainability")
             
             if show_explainability:
                 st.markdown("####  Feature Importance Analysis")
@@ -959,7 +959,7 @@ if uploaded is not None and interpreter is not None:
         
         # TAB 4: Telemetry
         with tab4:
-            st.markdown("### 📡 2G Telemetry Packet")
+            st.markdown("###  2G Telemetry Packet")
             
             telemetry = generate_telemetry(healthy, symptomatic, covid, patient_age, patient_gender, action_code)
             
@@ -1145,8 +1145,8 @@ if uploaded is not None and interpreter is not None:
         st.markdown("---")
         st.markdown("""
         <div class='citation-box'>
-            <strong>👨‍🔬 Researcher:</strong> Md Salek Miah<br>
-            <strong>🏛️ Affiliation:</strong> Shahjalal University of Science and Technology, Sylhet-3114, Bangladesh<br>
+            <strong> Researcher:</strong> Md Salek Miah<br>
+            <strong> Affiliation:</strong> Shahjalal University of Science and Technology, Sylhet-3114, Bangladesh<br>
             <br>
             <strong>📧 Email:</strong> <a href="mailto:saleksta@gmail.com" style="color:#1a237e;">saleksta@gmail.com</a><br>
             <strong>🔗 ORCID:</strong> <a href="https://orcid.org/0009-0005-5973-461X" target="_blank" style="color:#1a237e;">0009-0005-5973-461X</a><br>
@@ -1162,7 +1162,7 @@ if uploaded is not None and interpreter is not None:
 # PATIENT HISTORY
 # ============================================================================
 if st.session_state.results_history:
-    with st.expander("📋 Patient History", expanded=False):
+    with st.expander(" Patient History", expanded=False):
         df_history = pd.DataFrame(st.session_state.results_history)
         st.dataframe(df_history, use_container_width=True)
 
@@ -1184,7 +1184,7 @@ st.markdown("""
 # ============================================================================
 # SYSTEM INFORMATION
 # ============================================================================
-with st.expander("ℹ️ System Information", expanded=False):
+with st.expander(" System Information", expanded=False):
     col1, col2, col3 = st.columns(3)
     
     with col1:
