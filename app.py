@@ -1137,80 +1137,81 @@ if uploaded is not None and interpreter is not None:
                         else:
                             st.error("Failed to generate PDF report.")
             else:
-                warning_message = """
-                **PDF generation is not available.** 
-                
-                Please install ReportLab to enable PDF export:
-                ```bash
-                pip install reportlab
-                Alternatively, you can use the JSON, CSV, or Text export options in the Export tab.
-"""
-st.warning(warning_message)
+                st.warning("PDF generation is not available. Please install ReportLab to enable PDF export. Alternatively, use JSON, CSV, or Text export options.")
+        
+        # ====================================================================
+        # CITATION
+        # ====================================================================
+        st.markdown("---")
+        st.markdown("""
+        <div class='citation-box'>
+            <strong>📚 Recommended Citation:</strong><br>
+            AcousticBiomarker-GH: Edge-AI Clinical Decision Support System 
+            for Respiratory Pathogen Screening. <em>Journal of Digital Health, 12(3), 45-62.</em>
+            <br>
+            <strong>🔗 DOI:</strong> 10.xxxx/xxxxx
+            <br>
+            <strong>📧 Contact:</strong> research@acousticbiomarker.org
+        </div>
+        """, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.error(f"Error processing audio: {str(e)}")
+        st.info("Please try uploading a different .wav file. Ensure it's a valid audio file.")
 
-====================================================================
-CITATION
-====================================================================
-st.markdown("---")
-st.markdown("""
-
-<div class='citation-box'> <strong>📚 Recommended Citation:</strong><br> AcousticBiomarker-GH: Edge-AI Clinical Decision Support System for Respiratory Pathogen Screening. <em>Journal of Digital Health, 12(3), 45-62.</em> <br> <strong>🔗 DOI:</strong> 10.xxxx/xxxxx <br> <strong>📧 Contact:</strong> research@acousticbiomarker.org </div> """, unsafe_allow_html=True)
-except Exception as e:
-st.error(f"Error processing audio: {str(e)}")
-st.info("Please try uploading a different .wav file. Ensure it's a valid audio file.")
-
-============================================================================
-PATIENT HISTORY
-============================================================================
+# ============================================================================
+# PATIENT HISTORY
+# ============================================================================
 if st.session_state.results_history:
-with st.expander("📋 Patient History", expanded=False):
-df_history = pd.DataFrame(st.session_state.results_history)
-st.dataframe(df_history, use_container_width=True)
+    with st.expander("📋 Patient History", expanded=False):
+        df_history = pd.DataFrame(st.session_state.results_history)
+        st.dataframe(df_history, use_container_width=True)
 
-============================================================================
-FOOTER
-============================================================================
+# ============================================================================
+# FOOTER
+# ============================================================================
 st.markdown("""
+<div class='footer'>
+    <p>
+        <strong>🔬 AcousticBiomarker-GH v2.1</strong> | Clinical Research Platform<br>
+        <span style='font-size:10px;'>
+            All clinical decisions should be validated by healthcare professionals.
+            This is a research tool and not a substitute for clinical diagnosis.
+        </span>
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-<div class='footer'> <p> <strong>🔬 AcousticBiomarker-GH v2.1</strong> | Clinical Research Platform<br> <span style='font-size:10px;'> All clinical decisions should be validated by healthcare professionals. This is a research tool and not a substitute for clinical diagnosis. </span> </p> </div> """, unsafe_allow_html=True)
-============================================================================
-SYSTEM INFORMATION
-============================================================================
+# ============================================================================
+# SYSTEM INFORMATION
+# ============================================================================
 with st.expander("ℹ️ System Information", expanded=False):
-col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        <strong>Model Architecture:</strong><br>
+        MobileNetV2 (Quantized)<br>
+        <strong>Input Shape:</strong> 128x94x3<br>
+        <strong>Parameters:</strong> 2.3M
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <strong>Framework:</strong><br>
+        TensorFlow Lite 2.15.0<br>
+        <strong>Quantization:</strong> INT8<br>
+        <strong>Latency:</strong> 10.63ms
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <strong>Dataset:</strong><br>
+        COUGHVID + Virufy<br>
+        <strong>Classes:</strong> 3 (Healthy, Symptomatic, COVID)<br>
+        <strong>Validation:</strong> 5-fold CV
+        """, unsafe_allow_html=True)
 
-with col1:
-st.markdown("""
-<strong>Model Architecture:</strong>
-
-MobileNetV2 (Quantized)
-
-<strong>Input Shape:</strong> 128x94x3
-
-<strong>Parameters:</strong> 2.3M
-""", unsafe_allow_html=True)
-
-with col2:
-st.markdown("""
-<strong>Framework:</strong>
-
-TensorFlow Lite 2.15.0
-
-<strong>Quantization:</strong> INT8
-
-<strong>Latency:</strong> 10.63ms
-""", unsafe_allow_html=True)
-
-with col3:
-st.markdown("""
-<strong>Dataset:</strong>
-
-COUGHVID + Virufy
-
-<strong>Classes:</strong> 3 (Healthy, Symptomatic, COVID)
-
-<strong>Validation:</strong> 5-fold CV
-""", unsafe_allow_html=True)
-
-============================================================================
-END OF FILE
-============================================================================
+# ============================================================================
+# END OF FILE
+# ============================================================================
