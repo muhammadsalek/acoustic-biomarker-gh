@@ -382,11 +382,11 @@ def preprocess_audio(uploaded_file):
 
 def get_triage_level(covid_prob, symptomatic_prob):
     if covid_prob >= 0.70:
-        return "🔴 CRITICAL - EVACUATE", "#dc3545", "Critical", 1
+        return " CRITICAL - EVACUATE", "#dc3545", "Critical", 1
     elif covid_prob >= 0.35 or symptomatic_prob > 0.50:
-        return "🟠 ALERT - TELEMEDICINE", "#ff9800", "Moderate", 2
+        return " ALERT - TELEMEDICINE", "#ff9800", "Moderate", 2
     else:
-        return "🟢 STABLE - MONITOR", "#28a745", "Low", 3
+        return " STABLE - MONITOR", "#28a745", "Low", 3
 
 def get_recommendation(level, covid_prob, symptomatic_prob, symptoms):
     if level == "Critical":
@@ -535,7 +535,7 @@ def generate_pdf_report(patient_data, results_data, doctor_advice, fig_path=None
 # MAIN APPLICATION
 # ============================================================================
 uploaded = st.file_uploader(
-    "📤 Upload Cough Sound (.wav format)",
+    " Upload Cough Sound (.wav format)",
     type=["wav"],
     help="Upload a .wav file containing a cough sound for clinical screening"
 )
@@ -606,7 +606,7 @@ if uploaded is not None and interpreter is not None:
         
         st.markdown(f"""
         <div class='doctor-box'>
-            <div class='doctor-title'>👨‍⚕️ Specialist Doctor's Advice</div>
+            <div class='doctor-title'> Specialist Doctor's Advice</div>
             <div class='doctor-advice'>
                 <strong>Clinical Specialist</strong><br>
                 <em>Infectious Disease Department</em><br><br>
@@ -620,7 +620,7 @@ if uploaded is not None and interpreter is not None:
         if level == "Critical":
             st.markdown("""
             <div class='emergency-box'>
-                <strong>🚨 EMERGENCY ALERT</strong><br>
+                <strong> EMERGENCY ALERT</strong><br>
                 This is a critical case requiring immediate medical attention.<br>
                 <strong>Emergency Contact:</strong> Call 999 (Emergency Services) or your local emergency number.<br>
                 <strong>Action Required:</strong> Immediate hospitalization and COVID-19 testing.
@@ -633,7 +633,7 @@ if uploaded is not None and interpreter is not None:
             st.markdown(f"""
             <div class='metric-card success'>
                 <div class='value' style='color:#28a745;'>{healthy*100:.1f}%</div>
-                <div class='label'>🟢 Healthy</div>
+                <div class='label'> Healthy</div>
                 <div class='ci'>95% CI: [{healthy_ci[0]*100:.1f}% - {healthy_ci[1]*100:.1f}%]</div>
             </div>
             """, unsafe_allow_html=True)
@@ -642,7 +642,7 @@ if uploaded is not None and interpreter is not None:
             st.markdown(f"""
             <div class='metric-card warning'>
                 <div class='value' style='color:#ff9800;'>{symptomatic*100:.1f}%</div>
-                <div class='label'>🟠 Symptomatic</div>
+                <div class='label'> Symptomatic</div>
                 <div class='ci'>95% CI: [{symptomatic_ci[0]*100:.1f}% - {symptomatic_ci[1]*100:.1f}%]</div>
             </div>
             """, unsafe_allow_html=True)
@@ -651,7 +651,7 @@ if uploaded is not None and interpreter is not None:
             st.markdown(f"""
             <div class='metric-card critical'>
                 <div class='value' style='color:#dc3545;'>{covid*100:.1f}%</div>
-                <div class='label'>🔴 COVID-19</div>
+                <div class='label'> COVID-19</div>
                 <div class='ci'>95% CI: [{covid_ci[0]*100:.1f}% - {covid_ci[1]*100:.1f}%]</div>
             </div>
             """, unsafe_allow_html=True)
@@ -669,17 +669,17 @@ if uploaded is not None and interpreter is not None:
         # TABS
         # ====================================================================
         tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-            "🎵 Spectrogram",
-            "📈 Advanced Analytics",
-            "🔬 Explainability",
-            "📡 Telemetry",
-            "📊 Export",
-            "📄 PDF Report"
+            " Spectrogram",
+            " Advanced Analytics",
+            " Explainability",
+            " Telemetry",
+            " Export",
+            " PDF Report"
         ])
         
         # TAB 1: Spectrogram
         with tab1:
-            st.markdown("### 🎵 Acoustic Spectrogram Analysis")
+            st.markdown("###  Acoustic Spectrogram Analysis")
             
             col1, col2 = st.columns([3, 2])
             
@@ -697,7 +697,7 @@ if uploaded is not None and interpreter is not None:
             with col2:
                 st.markdown("""
                 <div style='background:#f8f9fa;padding:15px;border-radius:10px;'>
-                    <h4>📊 Spectrogram Analysis</h4>
+                    <h4> Spectrogram Analysis</h4>
                     <p><strong>Duration:</strong> 3.0 seconds</p>
                     <p><strong>Sampling Rate:</strong> 16,000 Hz</p>
                     <p><strong>FFT Size:</strong> 2,048</p>
@@ -714,7 +714,7 @@ if uploaded is not None and interpreter is not None:
                 </div>
                 """, unsafe_allow_html=True)
             
-            st.markdown("### 📉 Time-Domain Waveform")
+            st.markdown("###  Time-Domain Waveform")
             fig, ax = plt.subplots(figsize=(12, 3))
             time = np.linspace(0, len(waveform) / sr, len(waveform))
             ax.plot(time, waveform, color='#1a237e', alpha=0.7)
@@ -727,13 +727,13 @@ if uploaded is not None and interpreter is not None:
         
         # TAB 2: Advanced Analytics
         with tab2:
-            st.markdown("### 📈 Advanced Research Analytics")
+            st.markdown("###  Advanced Research Analytics")
             
             if show_advanced:
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("#### 📊 Model Performance Metrics")
+                    st.markdown("####  Model Performance Metrics")
                     metrics_data = {
                         'Metric': [
                             'AUC-ROC',
@@ -830,7 +830,7 @@ if uploaded is not None and interpreter is not None:
                     st.plotly_chart(fig, use_container_width=True)
                 
                 if show_calibration:
-                    st.markdown("#### 📊 Calibration Curve")
+                    st.markdown("####  Calibration Curve")
                     
                     prob_pred = np.linspace(0, 1, 20)
                     prob_true = 0.5 + 0.5 * np.random.randn(20) + prob_pred * 0.2
@@ -860,14 +860,14 @@ if uploaded is not None and interpreter is not None:
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 
-                st.markdown("#### 📊 Statistical Analysis")
+                st.markdown("####  Statistical Analysis")
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.markdown("""
                     <div class='metric-card info'>
                         <div class='value'>0.92</div>
-                        <div class='label'>📊 Cohen's Kappa</div>
+                        <div class='label'> Cohen's Kappa</div>
                         <div class='ci'>Inter-rater Agreement</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -876,7 +876,7 @@ if uploaded is not None and interpreter is not None:
                     st.markdown("""
                     <div class='metric-card info'>
                         <div class='value'>0.89</div>
-                        <div class='label'>📈 F1-Score</div>
+                        <div class='label'> F1-Score</div>
                         <div class='ci'>Harmonic Mean</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -885,7 +885,7 @@ if uploaded is not None and interpreter is not None:
                     st.markdown("""
                     <div class='metric-card info'>
                         <div class='value'>0.93</div>
-                        <div class='label'>📊 MCC</div>
+                        <div class='label'> MCC</div>
                         <div class='ci'>Matthews Correlation</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -897,7 +897,7 @@ if uploaded is not None and interpreter is not None:
             st.markdown("### 🔬 Model Explainability")
             
             if show_explainability:
-                st.markdown("#### 📊 Feature Importance Analysis")
+                st.markdown("####  Feature Importance Analysis")
                 
                 features = [
                     'MFCC 1', 'MFCC 2', 'MFCC 3', 'MFCC 4', 'MFCC 5',
@@ -932,7 +932,7 @@ if uploaded is not None and interpreter is not None:
                 
                 st.markdown("""
                 <div class='citation-box'>
-                    <strong>🔬 Feature Interpretation:</strong><br>
+                    <strong> Feature Interpretation:</strong><br>
                     The model identifies acoustic biomarkers in cough sounds. Key features include:
                     <ul>
                         <li><strong>MFCC:</strong> Mel-frequency cepstral coefficients - captures vocal tract characteristics</li>
@@ -943,7 +943,7 @@ if uploaded is not None and interpreter is not None:
                 </div>
                 """, unsafe_allow_html=True)
                 
-                st.markdown("#### 📊 Confusion Matrix")
+                st.markdown("####  Confusion Matrix")
                 cm_data = np.array([[45, 3, 2], [2, 38, 5], [1, 4, 40]])
                 fig, ax = plt.subplots(figsize=(8, 6))
                 sns.heatmap(cm_data, annot=True, fmt='d', cmap='Blues',
@@ -966,12 +966,12 @@ if uploaded is not None and interpreter is not None:
             col1, col2 = st.columns([2, 1])
             
             with col1:
-                st.markdown("#### 📦 Encoded Telemetry")
+                st.markdown("####  Encoded Telemetry")
                 st.code(telemetry, language="text")
-                st.caption("📡 28-byte Base64 encoded telemetry packet for low-bandwidth 2G transmission")
+                st.caption(" 28-byte Base64 encoded telemetry packet for low-bandwidth 2G transmission")
             
             with col2:
-                st.markdown("#### 📊 Packet Structure")
+                st.markdown("####  Packet Structure")
                 packet_info = {
                     'Field': ['Device ID', 'Age', 'Gender', 'Healthy Prob', 'Symptomatic Prob', 'COVID Prob', 'Action Code'],
                     'Value': ['40409', str(patient_age), patient_gender[0], f'{healthy:.3f}', f'{symptomatic:.3f}', f'{covid:.3f}', str(action_code)]
@@ -980,20 +980,20 @@ if uploaded is not None and interpreter is not None:
                 st.dataframe(df_packet, hide_index=True)
             
             st.download_button(
-                "📥 Download Telemetry Packet",
+                " Download Telemetry Packet",
                 data=telemetry,
                 file_name=f"telemetry_{patient_id}_{datetime.now().strftime('%Y%m%d')}.txt",
                 mime="text/plain"
             )
             
-            st.markdown("#### 🔐 Integrity Check")
+            st.markdown("####  Integrity Check")
             hash_value = hashlib.sha256(telemetry.encode()).hexdigest()[:16]
             st.code(hash_value, language="text")
             st.caption("SHA-256 hash (truncated) for data integrity verification")
         
         # TAB 5: Export
         with tab5:
-            st.markdown("### 📊 Data Export")
+            st.markdown("###  Data Export")
             
             export_data = {
                 'Patient_ID': str(patient_id),
@@ -1021,7 +1021,7 @@ if uploaded is not None and interpreter is not None:
             with col1:
                 json_data = json.dumps(export_data, indent=2)
                 st.download_button(
-                    "📄 Download JSON",
+                    " Download JSON",
                     json_data,
                     f"patient_{patient_id}_{datetime.now().strftime('%Y%m%d')}.json",
                     "application/json"
@@ -1031,7 +1031,7 @@ if uploaded is not None and interpreter is not None:
                 df_export = pd.DataFrame([export_data])
                 csv = df_export.to_csv(index=False)
                 st.download_button(
-                    "📊 Download CSV",
+                    " Download CSV",
                     csv,
                     f"patient_{patient_id}_{datetime.now().strftime('%Y%m%d')}.csv",
                     "text/csv"
@@ -1087,14 +1087,14 @@ if uploaded is not None and interpreter is not None:
             
             if export_auto:
                 st.session_state.results_history.append(export_data)
-                st.success("✅ Results automatically saved to history!")
+                st.success(" Results automatically saved to history!")
         
         # TAB 6: PDF Report
         with tab6:
-            st.markdown("### 📄 PDF Clinical Report")
+            st.markdown("###  PDF Clinical Report")
             
             if REPORTLAB_AVAILABLE:
-                st.info("📄 Generate a professional PDF report with all clinical findings and doctor's advice.")
+                st.info(" Generate a professional PDF report with all clinical findings and doctor's advice.")
                 
                 patient_data = {
                     'patient_id': patient_id,
@@ -1123,35 +1123,34 @@ if uploaded is not None and interpreter is not None:
                     'referral': referral
                 }
                 
-                if st.button("📄 Generate PDF Report", use_container_width=True):
+                if st.button(" Generate PDF Report", use_container_width=True):
                     with st.spinner("Generating PDF report..."):
                         pdf_buffer = generate_pdf_report(patient_data, results_data, doctor_data)
                         if pdf_buffer:
                             st.download_button(
-                                "📥 Download PDF Report",
+                                " Download PDF Report",
                                 data=pdf_buffer,
                                 file_name=f"clinical_report_{patient_id}_{datetime.now().strftime('%Y%m%d')}.pdf",
                                 mime="application/pdf"
                             )
-                            st.success("✅ PDF Report generated successfully!")
+                            st.success(" PDF Report generated successfully!")
                         else:
                             st.error("Failed to generate PDF report.")
             else:
                 st.warning("PDF generation is not available. Please install ReportLab to enable PDF export. Alternatively, use JSON, CSV, or Text export options.")
         
-        # ====================================================================
+                # ====================================================================
         # CITATION
         # ====================================================================
         st.markdown("---")
         st.markdown("""
         <div class='citation-box'>
-            <strong>📚 Recommended Citation:</strong><br>
-            AcousticBiomarker-GH: Edge-AI Clinical Decision Support System 
-            for Respiratory Pathogen Screening. <em>Journal of Digital Health, 12(3), 45-62.</em>
+            <strong>👨‍🔬 Researcher:</strong> Md Salek Miah<br>
+            <strong>🏛️ Affiliation:</strong> Shahjalal University of Science and Technology, Sylhet-3114, Bangladesh<br>
             <br>
-            <strong>🔗 DOI:</strong> 10.xxxx/xxxxx
-            <br>
-            <strong>📧 Contact:</strong> research@acousticbiomarker.org
+            <strong>📧 Email:</strong> <a href="mailto:saleksta@gmail.com" style="color:#1a237e;">saleksta@gmail.com</a><br>
+            <strong>🔗 ORCID:</strong> <a href="https://orcid.org/0009-0005-5973-461X" target="_blank" style="color:#1a237e;">0009-0005-5973-461X</a><br>
+            <strong>🔗 LinkedIn:</strong> <a href="https://www.linkedin.com/in/md-salek-miah-b34309329/" target="_blank" style="color:#1a237e;">Md Salek Miah</a>
         </div>
         """, unsafe_allow_html=True)
         
