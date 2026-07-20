@@ -13,7 +13,7 @@ st.markdown("<h4 style='text-align:center;'>Edge-AI Cough Screening</h4>", unsaf
 
 @st.cache_resource
 def load_model():
-    return tf.lite.Interpreter(model_path="model/acoustic_biomarker_quantized.tflite")
+    return tf.lite.Interpreter(model_path="acoustic_biomarker_quantized.tflite")
 
 interpreter = load_model()
 interpreter.allocate_tensors()
