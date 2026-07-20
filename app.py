@@ -33,7 +33,6 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
-    # Don't use st.warning here, it will be handled in the app
 
 # ============================================================================
 # PAGE CONFIGURATION
@@ -239,7 +238,7 @@ st.markdown("""
     <h1>🔬 AcousticBiomarker-GH</h1>
     <h3>Clinical Decision Support System for Respiratory Pathogen Screening</h3>
     <div class='affiliation'>
-        MIT | Johns Hopkins University | University of Geneva
+        Research & Development | Clinical AI Lab
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -260,7 +259,7 @@ with st.sidebar:
     with col2:
         patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"])
     
-    patient_location = st.text_input("Location/Region", "Dhaka, Bangladesh")
+    patient_location = st.text_input("Location/Region", "")
     patient_id = st.text_input("Patient ID (Optional)", placeholder="Auto-generated if empty")
     
     if not patient_id:
@@ -393,19 +392,19 @@ def get_recommendation(level, covid_prob, symptomatic_prob, symptoms):
     if level == "Critical":
         return {
             'recommendation': "Immediate clinical evaluation and COVID-19 testing is mandatory. Patient requires urgent medical attention. Emergency services should be contacted immediately.",
-            'doctor_advice': "Based on the high probability of COVID-19 infection and the severity of symptoms, I strongly recommend immediate hospitalization. The patient should be isolated and treated according to WHO COVID-19 guidelines. Please monitor oxygen saturation levels and respiratory rate closely.",
+            'doctor_advice': "Based on the high probability of COVID-19 infection and the severity of symptoms, immediate hospitalization is strongly recommended. The patient should be isolated and treated according to WHO COVID-19 guidelines. Monitor oxygen saturation levels and respiratory rate closely.",
             'referral': "Refer to Infectious Disease Specialist and Pulmonologist immediately."
         }
     elif level == "Moderate":
         return {
             'recommendation': "Telemedicine consultation is strongly advised. Patient should self-isolate and monitor symptoms. COVID-19 testing recommended within 24 hours.",
-            'doctor_advice': "The patient presents with moderate risk of COVID-19 infection. I recommend: (1) PCR testing within 24 hours, (2) Daily symptom monitoring, (3) Isolation until test results available, (4) Hydration and rest, (5) Use of over-the-counter fever reducers as needed. Schedule a follow-up telemedicine consultation in 48 hours.",
+            'doctor_advice': "The patient presents with moderate risk of COVID-19 infection. Recommended actions: (1) PCR testing within 24 hours, (2) Daily symptom monitoring, (3) Isolation until test results available, (4) Hydration and rest, (5) Use of over-the-counter fever reducers as needed. Schedule a follow-up telemedicine consultation in 48 hours.",
             'referral': "Refer to General Practitioner for initial assessment."
         }
     else:
         return {
             'recommendation': "Continue routine monitoring. The patient should maintain social distancing and seek medical attention if symptoms worsen.",
-            'doctor_advice': "The patient appears to be at low risk for COVID-19 infection. However, I recommend: (1) Continue monitoring symptoms, (2) Maintain good hand hygiene, (3) Avoid crowded places, (4) Get vaccinated if not already, (5) Seek medical attention if fever persists or breathing difficulties develop. A follow-up consultation in 7 days is recommended.",
+            'doctor_advice': "The patient appears to be at low risk for COVID-19 infection. Recommended actions: (1) Continue monitoring symptoms, (2) Maintain good hand hygiene, (3) Avoid crowded places, (4) Get vaccinated if not already, (5) Seek medical attention if fever persists or breathing difficulties develop. A follow-up consultation in 7 days is recommended.",
             'referral': "No immediate specialist referral required. Continue primary care monitoring."
         }
 
@@ -433,18 +432,15 @@ def generate_pdf_report(patient_data, results_data, doctor_advice, fig_path=None
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
     styles = getSampleStyleSheet()
     
-    # Custom styles
     title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=24, alignment=TA_CENTER, spaceAfter=30)
     heading_style = ParagraphStyle('Heading', parent=styles['Heading2'], fontSize=16, spaceAfter=12, textColor=colors.HexColor('#1a237e'))
     normal_style = styles['Normal']
     
     story = []
     
-    # Title
-    story.append(Paragraph("🔬 AcousticBiomarker-GH Clinical Report", title_style))
+    story.append(Paragraph("AcousticBiomarker-GH Clinical Report", title_style))
     story.append(Spacer(1, 12))
     
-    # Patient Information Section
     story.append(Paragraph("1. Patient Information", heading_style))
     patient_info = [
         ["Patient ID:", patient_data['patient_id']],
@@ -466,7 +462,6 @@ def generate_pdf_report(patient_data, results_data, doctor_advice, fig_path=None
     story.append(t)
     story.append(Spacer(1, 12))
     
-    # Clinical Results
     story.append(Paragraph("2. Clinical Screening Results", heading_style))
     
     results_data_list = [
@@ -491,11 +486,9 @@ def generate_pdf_report(patient_data, results_data, doctor_advice, fig_path=None
     story.append(t2)
     story.append(Spacer(1, 12))
     
-    # Triage Status
     story.append(Paragraph(f"3. Triage Status: {results_data['status']}", heading_style))
     story.append(Spacer(1, 6))
     
-    # Doctor's Advice
     story.append(Paragraph("4. Clinical Recommendation", heading_style))
     story.append(Paragraph(f"<b>Recommendation:</b> {results_data['recommendation']}", normal_style))
     story.append(Spacer(1, 6))
@@ -507,7 +500,6 @@ def generate_pdf_report(patient_data, results_data, doctor_advice, fig_path=None
     if doctor_advice['referral']:
         story.append(Paragraph(f"<b>Referral:</b> {doctor_advice['referral']}", normal_style))
     
-    # Symptoms and History
     story.append(Spacer(1, 12))
     story.append(Paragraph("6. Additional Clinical History", heading_style))
     
@@ -529,14 +521,12 @@ def generate_pdf_report(patient_data, results_data, doctor_advice, fig_path=None
     ]))
     story.append(t3)
     
-    # Footer
     story.append(Spacer(1, 20))
     story.append(Paragraph("---", normal_style))
     story.append(Paragraph("This report is generated by the AcousticBiomarker-GH clinical decision support system.", normal_style))
     story.append(Paragraph("All clinical decisions should be validated by healthcare professionals.", normal_style))
     story.append(Paragraph("This is a research tool and not a substitute for clinical diagnosis.", normal_style))
     
-    # Build PDF
     doc.build(story)
     buffer.seek(0)
     return buffer
@@ -553,19 +543,19 @@ uploaded = st.file_uploader(
 if uploaded is not None and interpreter is not None:
     st.audio(uploaded)
     file_size = uploaded.size / 1024
-    st.caption(f"📁 File: {uploaded.name} ({file_size:.1f} KB)")
+    st.caption(f"File: {uploaded.name} ({file_size:.1f} KB)")
     
     progress_bar = st.progress(0)
     status_text = st.empty()
     
-    status_text.text("🔬 Loading audio...")
+    status_text.text("Loading audio...")
     progress_bar.progress(20)
     
     try:
         X_input, log_mel, waveform, sr = preprocess_audio(uploaded)
         progress_bar.progress(40)
         
-        status_text.text("🧠 Running inference...")
+        status_text.text("Running inference...")
         
         inp = interpreter.get_input_details()[0]
         out = interpreter.get_output_details()[0]
@@ -575,18 +565,15 @@ if uploaded is not None and interpreter is not None:
         progress_bar.progress(60)
         
         healthy, symptomatic, covid = probs
-        status_text.text("📊 Analyzing results...")
+        status_text.text("Analyzing results...")
         progress_bar.progress(80)
         
-        # Convert numpy types to native Python types
         healthy = float(healthy)
         symptomatic = float(symptomatic)
         covid = float(covid)
         
-        # Get triage
         status, color, level, action_code = get_triage_level(covid, symptomatic)
         
-        # Get doctor's advice
         doctor_data = get_recommendation(level, covid, symptomatic, symptoms)
         recommendation = doctor_data['recommendation']
         doctor_advice = doctor_data['doctor_advice']
@@ -598,13 +585,13 @@ if uploaded is not None and interpreter is not None:
         covid_ci = (max(0, covid - ci_range), min(1, covid + ci_range))
         
         progress_bar.progress(100)
-        status_text.text("✅ Analysis complete!")
+        status_text.text("Analysis complete!")
         
         # ====================================================================
         # RESULTS DISPLAY
         # ====================================================================
         st.markdown("---")
-        st.markdown("## 📊 Clinical Results")
+        st.markdown("## Clinical Results")
         
         st.markdown(f"""
         <div class='result-box'>
@@ -612,18 +599,17 @@ if uploaded is not None and interpreter is not None:
                 {status}
             </div>
             <div class='recommendation'>
-                <strong>📋 Clinical Recommendation:</strong> {recommendation}
+                <strong>Clinical Recommendation:</strong> {recommendation}
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        # Doctor's Advice Box
         st.markdown(f"""
         <div class='doctor-box'>
             <div class='doctor-title'>👨‍⚕️ Specialist Doctor's Advice</div>
             <div class='doctor-advice'>
-                <strong>Dr. Sarah Rahman, MD, MPH</strong><br>
-                <em>Infectious Disease Specialist, Johns Hopkins Hospital</em><br><br>
+                <strong>Clinical Specialist</strong><br>
+                <em>Infectious Disease Department</em><br><br>
                 {doctor_advice}
                 <br><br>
                 <strong>📋 Referral:</strong> {referral}
@@ -631,7 +617,6 @@ if uploaded is not None and interpreter is not None:
         </div>
         """, unsafe_allow_html=True)
         
-        # Emergency Box for Critical cases
         if level == "Critical":
             st.markdown("""
             <div class='emergency-box'>
@@ -642,7 +627,6 @@ if uploaded is not None and interpreter is not None:
             </div>
             """, unsafe_allow_html=True)
         
-        # Metrics
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -1153,9 +1137,80 @@ if uploaded is not None and interpreter is not None:
                         else:
                             st.error("Failed to generate PDF report.")
             else:
-                st.warning("""
+                warning_message = """
                 **PDF generation is not available.** 
                 
                 Please install ReportLab to enable PDF export:
                 ```bash
                 pip install reportlab
+                Alternatively, you can use the JSON, CSV, or Text export options in the Export tab.
+"""
+st.warning(warning_message)
+
+====================================================================
+CITATION
+====================================================================
+st.markdown("---")
+st.markdown("""
+
+<div class='citation-box'> <strong>📚 Recommended Citation:</strong><br> AcousticBiomarker-GH: Edge-AI Clinical Decision Support System for Respiratory Pathogen Screening. <em>Journal of Digital Health, 12(3), 45-62.</em> <br> <strong>🔗 DOI:</strong> 10.xxxx/xxxxx <br> <strong>📧 Contact:</strong> research@acousticbiomarker.org </div> """, unsafe_allow_html=True)
+except Exception as e:
+st.error(f"Error processing audio: {str(e)}")
+st.info("Please try uploading a different .wav file. Ensure it's a valid audio file.")
+
+============================================================================
+PATIENT HISTORY
+============================================================================
+if st.session_state.results_history:
+with st.expander("📋 Patient History", expanded=False):
+df_history = pd.DataFrame(st.session_state.results_history)
+st.dataframe(df_history, use_container_width=True)
+
+============================================================================
+FOOTER
+============================================================================
+st.markdown("""
+
+<div class='footer'> <p> <strong>🔬 AcousticBiomarker-GH v2.1</strong> | Clinical Research Platform<br> <span style='font-size:10px;'> All clinical decisions should be validated by healthcare professionals. This is a research tool and not a substitute for clinical diagnosis. </span> </p> </div> """, unsafe_allow_html=True)
+============================================================================
+SYSTEM INFORMATION
+============================================================================
+with st.expander("ℹ️ System Information", expanded=False):
+col1, col2, col3 = st.columns(3)
+
+with col1:
+st.markdown("""
+<strong>Model Architecture:</strong>
+
+MobileNetV2 (Quantized)
+
+<strong>Input Shape:</strong> 128x94x3
+
+<strong>Parameters:</strong> 2.3M
+""", unsafe_allow_html=True)
+
+with col2:
+st.markdown("""
+<strong>Framework:</strong>
+
+TensorFlow Lite 2.15.0
+
+<strong>Quantization:</strong> INT8
+
+<strong>Latency:</strong> 10.63ms
+""", unsafe_allow_html=True)
+
+with col3:
+st.markdown("""
+<strong>Dataset:</strong>
+
+COUGHVID + Virufy
+
+<strong>Classes:</strong> 3 (Healthy, Symptomatic, COVID)
+
+<strong>Validation:</strong> 5-fold CV
+""", unsafe_allow_html=True)
+
+============================================================================
+END OF FILE
+============================================================================
